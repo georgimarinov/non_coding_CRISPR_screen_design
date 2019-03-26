@@ -1,6 +1,6 @@
 ##################################
 #                                #
-# Last modified 2019/01/16       #
+# Last modified 2019/02/25       #
 #                                #
 # Georgi Marinov                 #
 #                                # 
@@ -18,7 +18,7 @@ import time
 def run():
 
     if len(sys.argv) < 7:
-        print 'usage: python %s guidescan_prefix region chrFieldID leftFieldID rightFieldID N_guides_per_region outfile [-addAdapter left right] [-simpleOverlap] [-extendRegion left right] [-flankControls distance radius GTF exon|CDS] [-sortByCFD]' % sys.argv[0]
+        print 'usage: python %s guidescan_prefix region chrFieldID leftFieldID rightFieldID N_guides_per_region outfile [-addAdapter left right] [-simpleOverlap] [-extendRegion left right] [-flankControls distance radius GTF exon|CDS] [-sortByCFD] [-offset bp]' % sys.argv[0]
         print '\tguidescan prefix example:'
         print '\t\t\thg38-male'
         print 'where files are named as follows:'
@@ -27,6 +27,8 @@ def run():
         print '\tuse the [-sortByCFD] option to sort by the CFD score'
         print '\tBy default the script will only ouput Cas9 guides that cut within the region; if you want all guides overlapping the region, use the [-simpleOverlap] option'
         print '\tUse the [-flankControls] to pick control guides nearby within a distance of the a minimum distance provided by the distance and radius parameters and not overlapping either the exons or the CDSs in the specified GTF file'
+        print '\tUse the [-offset] option to shit the position of cut site byt the desired number of uses (e.g. for use when designing base editor guides)'
+        print '\t\tthe shift will be relative to the strand of the guide (i.e. usptream for negative values, downstream for positive)'
         sys.exit(1)
 
     GS = sys.argv[1]
@@ -40,6 +42,13 @@ def run():
     doCFDsort = False
     if '-sortByCFD' in sys.argv:
         doCFDsort = True
+
+    OS = 0
+    doOffset = False
+    if '-offset' in sys.argv:
+        doOffset = True
+        OS = int(sys.argv[sys.argv.index('-offset') + 1])
+        print 'will shift cut sites regions by', OS, 'bp'
 
     doER = False
     if '-extendRegion' in sys.argv:
@@ -160,7 +169,7 @@ def run():
                 print C, chr, GS + '.' + chr + '.csv.gz'
                 sys.exit(1)
             left = int(fields[1])
-            right = int(fields[2])
+            right = int(fields[2]) + 1
             strand =  fields[6]
             gRNA = fields[3]
             cutting_efficiency_score = fields[4]
@@ -173,9 +182,9 @@ def run():
                 guide = (offtargets_sum,offtargets_summary,chr,left,right,gRNA,cutting_efficiency_score,cutting_specificity_score,strand)
             if doSO:
                 if strand == '+':
-                    cut = right - 3
+                    cut = right - 3 - 3 + OS
                 if strand == '-':
-                    cut = left + 3
+                    cut = left + 3 + 3 - OS
                 if RegionDict[chr].has_key(right):
                     if RegionDict[chr][right] == 1:
                         RegionDict[chr][right] = []
@@ -188,9 +197,9 @@ def run():
                     continue
             else:
                 if strand == '+':
-                    cut = right - 3
+                    cut = right - 3 + OS
                 if strand == '-':
-                    cut = left + 3
+                    cut = left + 3 - OS
                 if RegionDict[chr].has_key(cut):
                     pass
                 else:
